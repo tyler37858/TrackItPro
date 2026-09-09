@@ -1,0 +1,12 @@
+TrackItPro Android Studio Project
+
+1. Extract TrackItPro_AndroidStudio_Clean.zip.
+2. Open Android Studio.
+3. Choose File > Open.
+4. Select the extracted TrackItPro_AndroidStudio_Clean folder.
+5. Click OK/Open and trust the project if prompted.
+6. Allow Gradle Sync to finish.
+7. Android Studio will create a new local.properties file for your computer if needed.
+8. Select an emulator/device and run the app.
+
+Do not open the app folder by itself. Open the project root containing settings.gradle.kts, build.gradle.kts, gradlew, and the app folder.
