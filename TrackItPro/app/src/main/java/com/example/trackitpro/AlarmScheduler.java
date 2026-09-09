@@ -4,6 +4,7 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 public class AlarmScheduler {
 
@@ -16,7 +17,7 @@ public class AlarmScheduler {
         intent.putExtra("title", title);
         intent.putExtra("date", date);
 
-        // eventId makes it unique so alarms dont overwrite each other
+        // eventId makes it unique so alarms don't overwrite each other
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
                 (int) eventId,
@@ -25,12 +26,24 @@ public class AlarmScheduler {
         );
 
         if (alarmManager != null) {
-            // exact alarm at the chosen time (usually works fine)
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTimeMillis,
-                    pendingIntent
-            );
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            triggerTimeMillis,
+                            pendingIntent
+                    );
+                }
+
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTimeMillis,
+                        pendingIntent
+                );
+            }
         }
     }
 
