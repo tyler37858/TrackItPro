@@ -20,10 +20,10 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnCreateAccount;
 
     // sms permission stuff
-    private ActivityResultLauncher<String> smsPermissionLauncher;
-    public static boolean smsPermissionGranted = false;
+//    private ActivityResultLauncher<String> smsPermissionLauncher;
+//    public static boolean smsPermissionGranted = false;
 
-    private DatabaseHelper dbHelper;
+    private UserRepository userRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,45 +35,37 @@ public class LoginActivity extends AppCompatActivity {
         btnSignIn = findViewById(R.id.btnSignIn);
         btnCreateAccount = findViewById(R.id.btnCreateAccount);
 
-        dbHelper = new DatabaseHelper(this);
+        //create the repository used for account operations
+        userRepository = new UserRepository(this);
 
-        // ask for sms permission when the app opens (first screen)
-        smsPermissionLauncher = registerForActivityResult(
-                new ActivityResultContracts.RequestPermission(),
-                isGranted -> {
-                    smsPermissionGranted = isGranted;
-                    Toast.makeText(
-                            this,
-                            isGranted ? "SMS allowed" : "SMS denied (app still works)",
-                            Toast.LENGTH_LONG
-                    ).show();
-                }
-        );
-        checkSmsPermissionOnLaunch();
-
+        // set the actions for signingn in/ creating an account.
         btnSignIn.setOnClickListener(v -> attemptLogin());
         btnCreateAccount.setOnClickListener(v -> attemptCreateAccount());
     }
 
-    private void checkSmsPermissionOnLaunch() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
-                == PackageManager.PERMISSION_GRANTED) {
-            smsPermissionGranted = true;
-        } else {
-            smsPermissionLauncher.launch(Manifest.permission.SEND_SMS);
-        }
-    }
+//    private void checkSmsPermissionOnLaunch() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
+//                == PackageManager.PERMISSION_GRANTED) {
+//            smsPermissionGranted = true;
+//        } else {
+//            smsPermissionLauncher.launch(Manifest.permission.SEND_SMS);
+//        }
+//    }
 
     private void attemptLogin() {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
         if (username.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Enter username and password", Toast.LENGTH_SHORT).show();
+            Toast.makeText(
+                    this,
+                    "Enter username and password",
+                    Toast.LENGTH_SHORT).show();
             return;
         }
 
-        long userId = dbHelper.authenticateUser(username, password);
+        long userId = userRepository.authenticateUser(username, password);
+
         if (userId > 0) {
             Toast.makeText(this, "Logged in", Toast.LENGTH_SHORT).show();
             openEvents(userId, username);
@@ -91,7 +83,7 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        long userId = dbHelper.registerUser(username, password);
+        long userId = userRepository.registerUser(username, password);
         if (userId == -1) {
             Toast.makeText(this, "Username already exists", Toast.LENGTH_SHORT).show();
         } else {
@@ -112,6 +104,6 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (dbHelper != null) dbHelper.close();
+        if (userRepository != null) userRepository.close();
     }
 }

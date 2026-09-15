@@ -48,13 +48,18 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
         // delete button click
         holder.btnDelete.setOnClickListener(v -> {
-            if (listener != null)
-                listener.onDeleteClick(holder.getAdapterPosition());
+            int adapterPosition = holder.getAdapterPosition();
+
+            if (listener != null && adapterPosition != RecyclerView.NO_POSITION)
+                listener.onDeleteClick(adapterPosition);
+
         });
 
         // clicking the row opens details
         holder.itemView.setOnClickListener(v -> {
-            if (listener != null)
+            int adapterPosition = holder.getAdapterPosition();
+
+            if (listener != null && adapterPosition != RecyclerView.NO_POSITION)
                 listener.onItemClick(holder.getAdapterPosition());
         });
     }

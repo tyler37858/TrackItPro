@@ -17,7 +17,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private EditText etNotes;
     private Button btnSaveNotes;
 
-    private DatabaseHelper dbHelper;
+    private EventRepository eventRepository;
     private long eventId = -1;
 
     // runs when user opens event detail
@@ -41,7 +41,7 @@ public class EventDetailActivity extends AppCompatActivity {
         etNotes = findViewById(R.id.etNotes);
         btnSaveNotes = findViewById(R.id.btnSaveNotes);
 
-        dbHelper = new DatabaseHelper(this);
+        eventRepository = new EventRepository(this);
 
         // get values passed in
         eventId = getIntent().getLongExtra("eventId", -1);
@@ -53,7 +53,7 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // load saved notes
         if (eventId != -1) {
-            etNotes.setText(dbHelper.getEventNotes(eventId));
+            etNotes.setText(eventRepository.getEventNotes(eventId));
         }
 
         // save notes button
@@ -68,9 +68,9 @@ public class EventDetailActivity extends AppCompatActivity {
         }
 
         String notes = etNotes.getText().toString();
-        boolean ok = dbHelper.updateEventNotes(eventId, notes);
+        boolean updated = eventRepository.updateEventNotes(eventId, notes);
 
-        if (ok) {
+        if (updated) {
             Toast.makeText(this, "Notes saved", Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(this, "Could not save notes", Toast.LENGTH_SHORT).show();
@@ -81,7 +81,7 @@ public class EventDetailActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (dbHelper != null) dbHelper.close();
+        if (eventRepository != null) eventRepository.close();
     }
 }
 

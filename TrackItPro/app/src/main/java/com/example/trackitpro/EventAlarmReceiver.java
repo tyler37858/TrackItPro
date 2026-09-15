@@ -28,15 +28,20 @@ public class EventAlarmReceiver extends BroadcastReceiver {
         }
 
         long eventId = intent.getLongExtra("eventId", 0);
+        long userId = intent.getLongExtra("userId", -1);
         String title = intent.getStringExtra("title");
         String date = intent.getStringExtra("date");
 
         if (title == null) title = "Event reminder";
         if (date == null) date = "";
 
+        // creates the notification channel when it is required
         createChannelIfNeeded(context);
 
+        //open the event screen for the correct user when tapped
         Intent openAppIntent = new Intent(context, EventsActivity.class);
+        openAppIntent.putExtra("userId", userId);
+
         PendingIntent contentIntent = PendingIntent.getActivity(
                 context,
                 (int) eventId,
@@ -44,6 +49,7 @@ public class EventAlarmReceiver extends BroadcastReceiver {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        //build the event notification reminder for hte event
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle(title)
@@ -54,15 +60,18 @@ public class EventAlarmReceiver extends BroadcastReceiver {
 
         NotificationManager nm =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
         if (nm != null) {
             nm.notify((int) eventId, builder.build());
         }
     }
 
+    //create the event notification channel on newer than android 8 versions
     private void createChannelIfNeeded(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm =
                     (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
             if (nm == null) return;
 
             NotificationChannel channel = new NotificationChannel(
