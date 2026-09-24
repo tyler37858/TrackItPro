@@ -48,9 +48,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="200dp"
                 android:layout_marginTop="16dp"
-                android:src="@android:drawable/ic_menu_gallery"
-                android:contentDescription="Event image"
+                android:contentDescription="Selected event photo"
                 android:scaleType="centerCrop" />
+
+            <Button
+                android:id="@+id/btnSelectPhoto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Select Photo" />
 
             <TextView
                 android:id="@+id/tvNotesLabel"

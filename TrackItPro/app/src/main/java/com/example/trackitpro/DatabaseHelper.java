@@ -12,7 +12,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "trackitpro.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     // users table
     public static final String TABLE_USERS = "users";
@@ -28,6 +28,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COL_EVENT_DATE = "date";
     public static final String COL_EVENT_TRIGGER = "trigger_time";
     public static final String COL_EVENT_NOTES = "notes";
+    public static final String COL_EVENT_IMAGE_URI = "image_uri";
 
 
     public DatabaseHelper(Context context) {
@@ -50,6 +51,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_EVENT_DATE + " TEXT NOT NULL, " +
                 COL_EVENT_TRIGGER + " INTEGER NOT NULL, " +
                 COL_EVENT_NOTES + " TEXT, " +
+                COL_EVENT_IMAGE_URI + "TEXT, " +
                 "FOREIGN KEY(" + COL_EVENT_USER_ID + ") REFERENCES " +
                 TABLE_USERS + "(" + COL_USER_ID + ")" +
                 ");";
@@ -61,9 +63,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // if version changes, rebuild it (simple way)
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_EVENTS);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
-        onCreate(db);
+        // add image uri column when upgrading versions
+        if (oldVersion < 3)
+        {
+            db.execSQL("ALTER TABLE " + TABLE_EVENTS + " ADD COLUMN "
+                    + COL_EVENT_IMAGE_URI + " TEXT");
+        }
     }
 
     // create a new user (returns id or -1)
@@ -85,7 +90,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String selection = COL_USERNAME + " = ? AND " + COL_PASSWORD + " = ?";
         String[] args = { username, password };
 
-        try (Cursor cursor = db.query(TABLE_USERS, columns, selection, args, null, null, null)) {
+        try (Cursor cursor = db.query(TABLE_USERS, columns, selection, args, null,
+                null, null)) {
             if (cursor.moveToFirst()) {
                 return cursor.getLong(cursor.getColumnIndexOrThrow(COL_USER_ID));
             }
@@ -104,6 +110,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_EVENT_DATE, date);
         values.put(COL_EVENT_TRIGGER, triggerTimeMillis);
         values.put(COL_EVENT_NOTES, ""); // start empty
+        values.putNull(COL_EVENT_IMAGE_URI);
 
         return db.insert(TABLE_EVENTS, null, values);
     }
@@ -125,7 +132,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String selection = COL_EVENT_USER_ID + " = ?";
         String[] args = { String.valueOf(userId) };
 
-        try (Cursor cursor = db.query(TABLE_EVENTS, columns, selection, args, null, null, COL_EVENT_ID + " DESC")) {
+        String orderBy = COL_EVENT_TRIGGER + " ASC";
+
+        try (Cursor cursor = db.query(TABLE_EVENTS, columns, selection, args,
+                null, null, orderBy)) {
             while (cursor.moveToNext()) {
                 long eventId = cursor.getLong(cursor.getColumnIndexOrThrow(COL_EVENT_ID));
                 long ownerId = cursor.getLong(cursor.getColumnIndexOrThrow(COL_EVENT_USER_ID));
@@ -142,10 +152,47 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return results;
     }
 
+    //save the selected photo uri for event
+    public boolean updateEventImageUri(long eventId, String imageUri)
+    {
+        SQLiteDatabase db = getWritableDatabase();
+
+        ContentValues values = new ContentValues();
+        values.put(COL_EVENT_IMAGE_URI, imageUri);
+
+        int rows = db.update(TABLE_EVENTS, values, COL_EVENT_ID + " = ?",
+                new String[]{String.valueOf(eventId)});
+
+        return rows > 0;
+    }
+
+    //get saved phoot uri for an event
+    public String getEventImageUri(long eventId)
+    {
+        SQLiteDatabase db = getReadableDatabase();
+
+        String[] columns = {COL_EVENT_IMAGE_URI};
+        String selection = COL_EVENT_ID + " = ?";
+        String[] args = {String.valueOf(eventId)};
+
+        try (Cursor cursor = db.query(TABLE_EVENTS, columns, selection, args,
+                null, null, null))
+        {
+            if (cursor.moveToFirst())
+            {
+                String imageUri = cursor.getString(cursor.getColumnIndexOrThrow(COL_EVENT_IMAGE_URI));
+
+                return imageUri == null ? "" : imageUri;
+            }
+        }
+        return "";
+    }
+
     // delete an event by id
     public boolean deleteEvent(long eventId) {
         SQLiteDatabase db = getWritableDatabase();
-        int rows = db.delete(TABLE_EVENTS, COL_EVENT_ID + " = ?", new String[]{ String.valueOf(eventId) });
+        int rows = db.delete(TABLE_EVENTS, COL_EVENT_ID + " = ?",
+                new String[]{ String.valueOf(eventId) });
         return rows > 0;
     }
 
@@ -156,7 +203,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(COL_EVENT_NOTES, notes);
 
-        int rows = db.update(TABLE_EVENTS, values, COL_EVENT_ID + " = ?", new String[]{ String.valueOf(eventId) });
+        int rows = db.update(TABLE_EVENTS, values, COL_EVENT_ID + " = ?",
+                new String[]{ String.valueOf(eventId) });
         return rows > 0;
     }
 
@@ -168,7 +216,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String selection = COL_EVENT_ID + " = ?";
         String[] args = { String.valueOf(eventId) };
 
-        try (Cursor cursor = db.query(TABLE_EVENTS, columns, selection, args, null, null, null)) {
+        try (Cursor cursor = db.query(TABLE_EVENTS, columns, selection, args, null,
+                null, null)) {
             if (cursor.moveToFirst()) {
                 String notes = cursor.getString(cursor.getColumnIndexOrThrow(COL_EVENT_NOTES));
                 return notes == null ? "" : notes;
