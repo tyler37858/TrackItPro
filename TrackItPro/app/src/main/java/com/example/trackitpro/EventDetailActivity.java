@@ -1,11 +1,16 @@
 package com.example.trackitpro;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -15,10 +20,14 @@ public class EventDetailActivity extends AppCompatActivity {
     private TextView tvDetailTitle;
     private TextView tvDetailDate;
     private EditText etNotes;
+    private ImageView ivDetailImage;
+    private Button btnSelectPhoto;
     private Button btnSaveNotes;
 
     private EventRepository eventRepository;
     private long eventId = -1;
+
+    private ActivityResultLauncher<PickVisualMediaRequest> photoPickerLauncher;
 
     // runs when user opens event detail
     @Override
@@ -39,9 +48,20 @@ public class EventDetailActivity extends AppCompatActivity {
         tvDetailTitle = findViewById(R.id.tvDetailTitle);
         tvDetailDate = findViewById(R.id.tvDetailDate);
         etNotes = findViewById(R.id.etNotes);
+        ivDetailImage = findViewById(R.id.ivDetailImage);
+        btnSelectPhoto = findViewById(R.id.btnSelectPhoto);
         btnSaveNotes = findViewById(R.id.btnSaveNotes);
 
         eventRepository = new EventRepository(this);
+
+        //setup photo picker
+        photoPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.PickVisualMedia(), uri -> {
+            if (uri != null)
+                {
+                    saveSelectedPhoto(uri);
+                }
+            });
 
         // get values passed in
         eventId = getIntent().getLongExtra("eventId", -1);
@@ -54,10 +74,59 @@ public class EventDetailActivity extends AppCompatActivity {
         // load saved notes
         if (eventId != -1) {
             etNotes.setText(eventRepository.getEventNotes(eventId));
+            loadSavedPhoto();
         }
+
+        //select photo button
+        btnSelectPhoto.setOnClickListener(v -> openPhotoPicker());
 
         // save notes button
         btnSaveNotes.setOnClickListener(v -> saveNotes());
+    }
+
+    //open the photopicker for selecting images
+    private void openPhotoPicker()
+    {
+        PickVisualMediaRequest request = new PickVisualMediaRequest.Builder().setMediaType(
+                ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build();
+
+        photoPickerLauncher.launch(request);
+    }
+
+    //display the selected photo
+    private void saveSelectedPhoto(Uri uri)
+    {
+        if (eventId == -1)
+        {
+            Toast.makeText(this, "Event missing Id", Toast.LENGTH_LONG).show();
+
+            return;
+        }
+
+        boolean updated = eventRepository.updateEventImageUri(eventId, uri.toString());
+
+        if (updated)
+        {
+            ivDetailImage.setImageURI(uri);
+
+            Toast.makeText(this, "Photo saved", Toast.LENGTH_SHORT).show();
+        }
+        else
+        {
+            Toast.makeText(this, "Unable to save photo", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    //load saved photo for event
+    private void loadSavedPhoto()
+    {
+        String imageUri = eventRepository.getEventImageUir(eventId);
+
+        if (imageUri != null && !imageUri.isEmpty())
+        {
+            Uri uri = Uri.parse(imageUri);
+            ivDetailImage.setImageURI(uri);
+        }
     }
 
     // saves notes into database

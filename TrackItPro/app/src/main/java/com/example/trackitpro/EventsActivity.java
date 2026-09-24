@@ -106,17 +106,26 @@ public class EventsActivity extends AppCompatActivity {
                     // make sure we got values back
                     if (title == null || date == null || triggerTimeMillis == -1) return;
 
+                    //check if another event is scheduled during this time
+                    if (eventRepository.hasEventConflict(userId, triggerTimeMillis))
+                    {
+                        Toast.makeText(this,
+                                "An event is already scheduled at this time",
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
                     // save new event into database
                     long newEventId =
                             eventRepository.addEvent(userId, title, date, triggerTimeMillis);
 
                     if (newEventId != -1) {
-                        // add event to list and update ui
+                        //create new event
                         Event newEvent = new Event(
                                 newEventId, userId, title, date, triggerTimeMillis,"");
-                        events.add(0, newEvent);
-                        adapter.notifyItemInserted(0);
-                        rvEvents.scrollToPosition(0);
+
+                        //reload events so they are in chronological order
+                        addEventsInChronoOrder(newEvent);
 
                         // schedule the alarm so notification pops later
                         AlarmScheduler.scheduleEventAlarm(
@@ -135,6 +144,22 @@ public class EventsActivity extends AppCompatActivity {
             Intent intent = new Intent(this, AddEventActivity.class);
             addEventLauncher.launch(intent);
         });
+    }
+
+    //load events from the database in chronological order
+    private void addEventsInChronoOrder(Event newEvent)
+    {
+        int position = 0;
+
+        while (position < events.size() && events.get(position).getTriggerTimeMillis() <
+                newEvent.getTriggerTimeMillis())
+        {
+            position++;
+        }
+
+        events.add(position, newEvent);
+        adapter.notifyItemInserted(position);
+        rvEvents.scrollToPosition(position);
     }
 
     //check notification permission on version 13 and newer

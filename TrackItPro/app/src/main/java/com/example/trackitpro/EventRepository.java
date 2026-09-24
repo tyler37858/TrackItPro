@@ -17,10 +17,30 @@ public class EventRepository {
         return dbHelper.getEventsForUser(userId);
     }
 
+    //check if there is a conflicting event
+    public boolean hasEventConflict(long userId, long triggerTimeMillis)
+    {
+        List<Event> existingEvents = getEventsForUser(userId);
+
+        return EventConflictChecker.hasConflict(triggerTimeMillis, existingEvents);
+    }
+
     //add a new event to the db for selected user
     public long addEvent(long userId, String title, String date, long triggerTimeMillis)
     {
         return dbHelper.addEvent(userId,title,date,triggerTimeMillis);
+    }
+
+    //update selected photo uri
+    public boolean updateEventImageUri(long eventId, String imageUri)
+    {
+        return dbHelper.updateEventImageUri(eventId, imageUri);
+    }
+
+    //get saved uri for image for event
+    public String getEventImageUir(long eventId)
+    {
+        return dbHelper.getEventImageUri(eventId);
     }
 
     //delete an event
