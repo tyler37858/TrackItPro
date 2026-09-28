@@ -38,7 +38,7 @@ public class EventRepository {
     }
 
     //get saved uri for image for event
-    public String getEventImageUir(long eventId)
+    public String getEventImageUri(long eventId)
     {
         return dbHelper.getEventImageUri(eventId);
     }

@@ -13,7 +13,7 @@ public class UserRepository {
         dbHelper = new DatabaseHelper(context.getApplicationContext());
     }
 
-    //create a new user account in the dtaabase
+    //create a new user account in the database
     public long registerUser(String username, String password)
     {
         return dbHelper.registerUser(username, password);
