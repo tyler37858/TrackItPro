@@ -120,7 +120,7 @@ public class EventDetailActivity extends AppCompatActivity {
     //load saved photo for event
     private void loadSavedPhoto()
     {
-        String imageUri = eventRepository.getEventImageUir(eventId);
+        String imageUri = eventRepository.getEventImageUri(eventId);
 
         if (imageUri != null && !imageUri.isEmpty())
         {

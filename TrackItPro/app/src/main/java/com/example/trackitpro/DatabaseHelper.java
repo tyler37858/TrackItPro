@@ -12,13 +12,14 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "trackitpro.db";
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 4;
 
     // users table
     public static final String TABLE_USERS = "users";
     public static final String COL_USER_ID = "_id";
     public static final String COL_USERNAME = "username";
     public static final String COL_PASSWORD = "password";
+    public static final String COL_PASSWORD_SALT = "password_saltt";
 
     // events table
     public static final String TABLE_EVENTS = "events";
@@ -30,6 +31,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COL_EVENT_NOTES = "notes";
     public static final String COL_EVENT_IMAGE_URI = "image_uri";
 
+    private static final String INDEX_EVENTS_USER_TRIGGER = "index_events_user_trigger";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -41,7 +43,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String createUsers = "CREATE TABLE " + TABLE_USERS + " (" +
                 COL_USER_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 COL_USERNAME + " TEXT UNIQUE NOT NULL, " +
-                COL_PASSWORD + " TEXT NOT NULL" +
+                COL_PASSWORD + " TEXT NOT NULL," +
+                COL_PASSWORD_SALT + " TEXT NOT NULL" +
                 ");";
 
         String createEvents = "CREATE TABLE " + TABLE_EVENTS + " (" +
@@ -51,13 +54,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_EVENT_DATE + " TEXT NOT NULL, " +
                 COL_EVENT_TRIGGER + " INTEGER NOT NULL, " +
                 COL_EVENT_NOTES + " TEXT, " +
-                COL_EVENT_IMAGE_URI + "TEXT, " +
+                COL_EVENT_IMAGE_URI + " TEXT, " +
                 "FOREIGN KEY(" + COL_EVENT_USER_ID + ") REFERENCES " +
-                TABLE_USERS + "(" + COL_USER_ID + ")" +
+                TABLE_USERS + "(" + COL_USER_ID + ") ON DELETE CASCADE" +
                 ");";
 
         db.execSQL(createUsers);
         db.execSQL(createEvents);
+
+        createEventIndex(db);
     }
 
     // if version changes, rebuild it (simple way)
@@ -69,15 +74,60 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE " + TABLE_EVENTS + " ADD COLUMN "
                     + COL_EVENT_IMAGE_URI + " TEXT");
         }
+
+        if (oldVersion < 4)
+        {
+            upgradeUserPasswords(db);
+            createEventIndex(db);
+        }
+    }
+
+    //covert existing passwords to hash
+    private void upgradeUserPasswords(SQLiteDatabase db)
+    {
+        db.execSQL("ALTER TABLE " + TABLE_USERS + " ADD COLUMN " + COL_PASSWORD_SALT + " TEXT");
+
+        String[] columns = {COL_USER_ID, COL_PASSWORD};
+
+        try(Cursor cursor = db.query(TABLE_USERS, columns,
+                null, null, null, null, null))
+        {
+            while (cursor.moveToNext())
+            {
+                long userId = cursor.getLong(cursor.getColumnIndexOrThrow(COL_USER_ID));
+                String oldPassword = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD));
+
+                String salt = PasswordHasher.createSalt();
+                String passwordHash = PasswordHasher.hashPassword(oldPassword, salt);
+
+                ContentValues values = new ContentValues();
+                values.put(COL_PASSWORD, passwordHash);
+                values.put(COL_PASSWORD_SALT, salt);
+
+                db.update(TABLE_USERS, values, COL_USER_ID + " = ?",
+                        new String[]{String.valueOf(userId)});
+            }
+        }
+    }
+
+    //create index for user and schedule event times
+    private void createEventIndex(SQLiteDatabase db)
+    {
+        db.execSQL("CREATE INDEX IF NOT EXISTS " + INDEX_EVENTS_USER_TRIGGER +
+                " ON " + TABLE_EVENTS + "(" + COL_EVENT_USER_ID + ", " + COL_EVENT_TRIGGER + ")");
     }
 
     // create a new user (returns id or -1)
     public long registerUser(String username, String password) {
         SQLiteDatabase db = getWritableDatabase();
 
+        String salt = PasswordHasher.createSalt();
+        String passwordHash = PasswordHasher.hashPassword(password, salt);
+
         ContentValues values = new ContentValues();
         values.put(COL_USERNAME, username);
-        values.put(COL_PASSWORD, password);
+        values.put(COL_PASSWORD, passwordHash);
+        values.put(COL_PASSWORD_SALT, salt);
 
         return db.insert(TABLE_USERS, null, values);
     }
@@ -86,14 +136,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public long authenticateUser(String username, String password) {
         SQLiteDatabase db = getReadableDatabase();
 
-        String[] columns = { COL_USER_ID };
-        String selection = COL_USERNAME + " = ? AND " + COL_PASSWORD + " = ?";
-        String[] args = { username, password };
+        String[] columns = { COL_USER_ID, COL_PASSWORD, COL_PASSWORD_SALT };
+        String selection = COL_USERNAME + " = ? ";
+        String[] args = { username };
 
         try (Cursor cursor = db.query(TABLE_USERS, columns, selection, args, null,
-                null, null)) {
-            if (cursor.moveToFirst()) {
-                return cursor.getLong(cursor.getColumnIndexOrThrow(COL_USER_ID));
+                null, null))
+        {
+            if (cursor.moveToFirst())
+            {
+                long userId = cursor.getLong(cursor.getColumnIndexOrThrow(COL_USER_ID));
+                String storedHash = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD));
+                String salt = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD_SALT));
+
+                if (PasswordHasher.verifyPassword(password, storedHash, salt))
+                    return userId;
             }
         }
 
